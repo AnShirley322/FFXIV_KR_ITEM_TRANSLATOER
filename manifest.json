@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "FFXIVKR_GLAMOUR_TRANSLATOR",
+  "version": "1.0.0",
+  "description": "EORZEACOLLECTION과 MIRAPRI의 아이템명을 한국서버의 번역명으로 표시하고 타르토맛 타르트의 검색 결과로 이어지는 버튼을 생성",
+  "permissions": [],
+  "host_permissions": [
+    "https://ff14.tar.to/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://ffxiv.eorzeacollection.com/glamour/*",
+        "https://mirapri.com/*",
+        "https://www.mirapri.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "style.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "version_name": "v1",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "FFXIVKR_GLAMOUR_TRANSLATOR",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}
