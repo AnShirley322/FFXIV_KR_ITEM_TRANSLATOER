@@ -17,7 +17,7 @@
     'Snow White', 'Ash Grey', 'Goobbue Grey', 'Slate Grey', 'Charcoal Grey', 'Soot Black',
     'Pure White', 'Jet Black',
     'Rose Pink', 'Lilac Purple', 'Rolanberry Red', 'Dalamud Red', 'Rust Red', 'Wine Red',
-    'Coral Pink', 'Blood Red', 'Salmon Pink', 'Sunset Orange', 'Mesa Red',
+    'Ruby Red', 'Coral Pink', 'Blood Red', 'Salmon Pink', 'Sunset Orange', 'Mesa Red',
     'Bark Brown', 'Chocolate Brown', 'Russet Brown', 'Kobold Brown', 'Cork Brown', 'Qiqirn Brown',
     'Opo-opo Brown', 'Aldgoat Brown', 'Pumpkin Orange', 'Acorn Brown', 'Orchard Brown',
     'Chestnut Brown', 'Gobbiebag Brown', 'Shale Brown', 'Mole Brown', 'Loam Brown',
