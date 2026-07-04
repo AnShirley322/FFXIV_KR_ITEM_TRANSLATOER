@@ -914,7 +914,7 @@
     });
   }
 
-  function lookupKoreanName(itemName) {
+  function lookupKoreanName(itemName, options = {}) {
     return new Promise((resolve) => {
       let settled = false;
       const timer = setTimeout(() => {
@@ -925,7 +925,7 @@
       }, LOOKUP_TIMEOUT_MS);
 
       try {
-        chrome.runtime.sendMessage({ type: 'EC_TARTO_LOOKUP', itemName }, (response) => {
+        chrome.runtime.sendMessage({ type: 'EC_TARTO_LOOKUP', itemName, preferDye: !!options.preferDye }, (response) => {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
@@ -988,7 +988,7 @@
     if (cached?.state === 'done') return cached.result;
     if (cached?.state === 'pending') return null;
 
-    const promise = lookupKoreanName(queryName).then((result) => {
+    const promise = lookupKoreanName(queryName, { preferDye: true }).then((result) => {
       const finalResult = result?.ok ? result : (staticResult
         ? { ok: true, koreanName: staticResult.koreanName, itemUrl: staticResult.itemUrl || '' }
         : result);

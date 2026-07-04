@@ -99,7 +99,16 @@ function getItemNamesForCompare(item) {
     .filter(Boolean);
 }
 
-function pickBestItem(items, queryName) {
+function isProbablyDyeItem(item) {
+  const joined = [item?.name, item?.name_eng, item?.name_jpn]
+    .map((value) => normalize(value))
+    .filter(Boolean)
+    .join(' ');
+
+  return /염료|dye|カララント/i.test(joined);
+}
+
+function pickBestItemFromList(items, queryName, allowLooseFallback = true) {
   const target = comparable(queryName);
   if (!Array.isArray(items) || items.length === 0 || !target) return null;
 
@@ -107,14 +116,32 @@ function pickBestItem(items, queryName) {
     items.find((item) => getItemNamesForCompare(item).some((name) => name === target)) ||
     items.find((item) => getItemNamesForCompare(item).some((name) => name.includes(target))) ||
     items.find((item) => getItemNamesForCompare(item).some((name) => target.includes(name))) ||
-    items.find((item) => item?.name && item?.id) ||
+    (allowLooseFallback ? items.find((item) => item?.name && item?.id) : null) ||
     null
   );
 }
 
-function extractFromInitialData(html, englishName) {
+function pickBestItem(items, queryName, options = {}) {
+  const target = comparable(queryName);
+  if (!Array.isArray(items) || items.length === 0 || !target) return null;
+
+  if (options.preferDye) {
+    const dyeItems = items.filter(isProbablyDyeItem);
+    const dyeMatch = pickBestItemFromList(dyeItems, queryName, false);
+    if (dyeMatch) return dyeMatch;
+
+    // For dye lookups, do not fall back to non-dye items such as furniture or rugs
+    // that merely contain the same color words. Showing no translation is safer
+    // than displaying a wrong item name.
+    return null;
+  }
+
+  return pickBestItemFromList(items, queryName, true);
+}
+
+function extractFromInitialData(html, englishName, options = {}) {
   const items = extractItemsFromInitialData(html);
-  const item = pickBestItem(items, englishName);
+  const item = pickBestItem(items, englishName, options);
 
   if (!item || !item.name || !item.id) {
     return null;
@@ -133,7 +160,7 @@ function extractFromInitialData(html, englishName) {
   };
 }
 
-function extractFromRenderedHtml(html, englishName) {
+function extractFromRenderedHtml(html, englishName, options = {}) {
   const matches = [...html.matchAll(/<a\b[^>]*href=["'](?:https?:\/\/ff14\.tar\.to)?\/item\/view\/(\d+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
   if (!matches.length) return null;
 
@@ -155,11 +182,15 @@ function extractFromRenderedHtml(html, englishName) {
     })
     .filter((candidate) => hasHangul(candidate.koreanName));
 
-  return candidates.find((candidate) => candidate.exact) || candidates[0] || null;
+  const scopedCandidates = options.preferDye
+    ? candidates.filter((candidate) => /염료/.test(candidate.koreanName))
+    : candidates;
+
+  return scopedCandidates.find((candidate) => candidate.exact) || scopedCandidates[0] || null;
 }
 
-function extractKoreanNameResult(html, englishName) {
-  return extractFromInitialData(html, englishName) || extractFromRenderedHtml(html, englishName);
+function extractKoreanNameResult(html, englishName, options = {}) {
+  return extractFromInitialData(html, englishName, options) || extractFromRenderedHtml(html, englishName, options);
 }
 
 async function fetchWithTimeout(url, timeoutMs = 12000) {
@@ -187,11 +218,12 @@ async function fetchWithTimeout(url, timeoutMs = 12000) {
   }
 }
 
-async function lookupOnTarto(englishName) {
+async function lookupOnTarto(englishName, options = {}) {
   const key = normalize(englishName);
   if (!key) return { ok: false, error: 'empty_item_name' };
 
-  if (cache.has(key)) return cache.get(key);
+  const cacheKey = `${options.preferDye ? 'dye:' : 'item:'}${key}`;
+  if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   const promise = (async () => {
     const requestUrl = `${TAR_TO_SEARCH_URL}${encodeURIComponent(key)}`;
@@ -202,10 +234,11 @@ async function lookupOnTarto(englishName) {
         return { ok: false, error: `HTTP ${response.status}`, searchUrl: requestUrl };
       }
 
-      const result = extractKoreanNameResult(response.html, key);
+      const result = extractKoreanNameResult(response.html, key, options);
       if (!result) {
         console.debug('[Eorzea Tarto KO] not found', {
           itemName: key,
+          preferDye: !!options.preferDye,
           searchUrl: requestUrl,
           finalUrl: response.finalUrl,
           htmlLength: response.html.length,
@@ -215,21 +248,21 @@ async function lookupOnTarto(englishName) {
         return { ok: false, error: 'not_found', searchUrl: requestUrl };
       }
 
-      console.debug('[Eorzea Tarto KO] found', { itemName: key, ...result });
+      console.debug('[Eorzea Tarto KO] found', { itemName: key, preferDye: !!options.preferDye, ...result });
       return { ok: true, searchUrl: requestUrl, ...result };
     } catch (error) {
       return { ok: false, error: error.message || String(error), searchUrl: requestUrl };
     }
   })();
 
-  cache.set(key, promise);
+  cache.set(cacheKey, promise);
   return promise;
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || message.type !== 'EC_TARTO_LOOKUP') return false;
 
-  lookupOnTarto(message.itemName)
+  lookupOnTarto(message.itemName, { preferDye: !!message.preferDye })
     .then((result) => sendResponse(result))
     .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
 
